@@ -14,13 +14,25 @@ FROM ubuntu:22.04
 # install libzbar (neccessary for pyzbar to read the QR codes)
 # install gdal
 # install libgl1
-# to reduce image size, clean up the apt cache by removing /var/lib/apt/lists.
+# install QGIS
+# To reduce image size, clean up the apt cache by removing /var/lib/apt/lists.
+# See https://www.qgis.org/en/site/forusers/alldownloads.html#repositories for the
+# correct QGIS repository to be added depending on the ubuntu version.
 RUN apt-get update \
+    && apt-get install wget software-properties-common gnupg -y --no-upgrade \
+    && wget -qO - https://qgis.org/downloads/qgis-2022.gpg.key | \
+    gpg --no-default-keyring --keyring gnupg-ring:/etc/apt/trusted.gpg.d/qgis-archive.gpg --import\
+    && chmod a+r /etc/apt/trusted.gpg.d/qgis-archive.gpg\
+    && add-apt-repository "deb https://qgis.org/ubuntu jammy main" \
+    && apt-get update \
     && apt-get install -y --no-upgrade \
         python3-pip \
         libzbar0 \
         libgdal-dev \
         libgl1 \
+        qgis \
+        qgis-plugin-grass \
+        python-qgis \
     && rm -rf /var/lib/apt/lists/*
 
 # update C env vars so compiler can find gdal
