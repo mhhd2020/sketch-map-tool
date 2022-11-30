@@ -134,7 +134,7 @@ def sketch_map_frame_markings_detected():
 
 @pytest.fixture
 def detected_markings():
-    path = str(FIXTURE_DIR / "detected_markings.geojson")
+    path = str(FIXTURE_DIR / "detected-markings.geojson")
     with open(path, "rb") as file:
         return BytesIO(file.read())
 
