@@ -9,5 +9,6 @@ def test_qgis():
     try:
         import qgis.analysis  # noqa
         import qgis.core  # noqa
+        import qgis.processing  # noqa
     except ImportError:
         assert False
