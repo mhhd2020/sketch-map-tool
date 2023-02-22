@@ -24,8 +24,8 @@ def resize_rlg_by_height(d: Drawing, size: float) -> Drawing:
     return d
 
 
-def resize_png(input: BytesIO, max_length: float) -> BytesIO:
-    input_img = PILImage.open(input)
+def resize_png(input_buffer: BytesIO, max_length: float) -> BytesIO:
+    input_img = PILImage.open(input_buffer)
     ratio = input_img.width / input_img.height
     if ratio > 1:
         width = min(max_length, input_img.width)
