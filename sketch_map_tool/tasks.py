@@ -24,7 +24,7 @@ from sketch_map_tool.upload_processing import (
     georeference,
     merge,
     polygonize,
-    prepare_img_for_markings,
+    prepare_img_for_marking_detection,
 )
 from sketch_map_tool.wms import client as wms_client
 
@@ -130,7 +130,7 @@ def digitize_sketches(
         r = db_client_celery.select_file(sketch_map_id)
         r = to_array(r)
         r = clip(r, map_frame)
-        r = prepare_img_for_markings(map_frame, r)
+        r = prepare_img_for_marking_detection(map_frame, r)
         geojsons = []
         for color in COLORS:
             r_ = detect_markings(r, color)

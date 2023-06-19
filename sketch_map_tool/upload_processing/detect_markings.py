@@ -10,24 +10,25 @@ from PIL import Image, ImageEnhance
 
 
 def detect_markings(
-    sketch_map_frame: NDArray,
-    color: str,
+    sketch_map_markings: NDArray,
+    colour: str,
     threshold_bgr: float = 0.5,
 ) -> NDArray:
     """
-    Detect markings in the colours blue, green, red, pink, turquoise, white, and yellow.
-    Note that there must be a sufficient difference between the colour of the markings and the background. White and
-    yellow markings might therefore not be detected on many sketch maps.
+    Detect areas in a specified colour in an image containing only markings on a sketch map. I.e. all non-marked
+    areas need to be set to zero (black) before calling this function.
 
-
-    :param sketch_map_frame: TODO
+    :param sketch_map_markings: Image containing all marked areas of a sketch map, with all other pixels set to zero.
+    :param colour: Colour the markings in which should be detected.
+                   Possible values: 'white', 'red', 'blue', 'green', 'yellow', 'turquoise', 'pink'
     :param threshold_bgr: Threshold for the colour detection. 0.5 means 50%, i.e. all BGR values above 50% * 255 will be
                           considered 255, all values below this threshold will be considered 0 for determining the
                           colour of the markings.
+    :return: Image with all pixels marked in the specified colour set to 255 and all others set to zero.
     """
     threshold_bgr_abs = threshold_bgr * 255
 
-    colors = {
+    colours = {
         "white": (255, 255, 255),
         "red": (0, 0, 255),
         "blue": (255, 0, 0),
@@ -36,40 +37,45 @@ def detect_markings(
         "turquoise": (255, 255, 0),
         "pink": (255, 0, 255),
     }
-    bgr = colors[color]
+    bgr = colours[colour]
 
     # for color, bgr in colors.items():
-    single_color_marking = np.zeros_like(sketch_map_frame, np.uint8)
-    single_color_marking[
+    single_colour_marking = np.zeros_like(sketch_map_markings, np.uint8)
+    single_colour_marking[
         (
-            (sketch_map_frame[:, :, 0] < threshold_bgr_abs)
+            (sketch_map_markings[:, :, 0] < threshold_bgr_abs)
             == (bgr[0] < threshold_bgr_abs)
         )
         & (
-            (sketch_map_frame[:, :, 1] < threshold_bgr_abs)
+            (sketch_map_markings[:, :, 1] < threshold_bgr_abs)
             == (bgr[1] < threshold_bgr_abs)
         )
         & (
-            (sketch_map_frame[:, :, 2] < threshold_bgr_abs)
+            (sketch_map_markings[:, :, 2] < threshold_bgr_abs)
             == (bgr[2] < threshold_bgr_abs)
         )
     ] = 255
-    single_color_marking = _reduce_noise(single_color_marking)
-    single_color_marking = _reduce_holes(single_color_marking)
-    single_color_marking[single_color_marking > 0] = 255
-    return single_color_marking
+    single_colour_marking = _reduce_noise(single_colour_marking)
+    single_colour_marking = _reduce_holes(single_colour_marking)
+    single_colour_marking[single_colour_marking > 0] = 255
+    return single_colour_marking
 
 
-def prepare_img_for_markings(
+def prepare_img_for_marking_detection(
     img_base: NDArray,
     img_markings: NDArray,
     threshold_img_diff: int = 100,
 ) -> NDArray:
     """
-    TODO pydoc
+    Based on an image of a sketch map with markings and another image of the same sketch map without markings,
+    retain the areas of the image of the marked sketch map which contain markings for further processing, set
+    the unmarked areas to black.
 
+    :img_base: Image of the unmarked sketch map.
+    :img_img_markings: Image of the marked sketch map.
     :param threshold_img_diff: Threshold for the marking detection concerning the absolute grayscale difference between
-    corresponding pixels in 'img_base' and 'img_markings'.
+                               corresponding pixels in 'img_base' and 'img_markings'.
+    :return: Image containing only the marked areas of a sketch map, all other pixels set to zero.
     """
     img_base_height, img_base_width, _ = img_base.shape
     img_markings = cv2.resize(
@@ -124,7 +130,7 @@ def _reduce_holes(img: NDArray, factor: int = 4) -> NDArray:
 
     :param img: Image in which the holes should be reduced.
     :param factor: Kernel size (x*x) of the reduction.
-    :return: 'img' with fewer and smaller holes.
+    :return: Image with fewer and smaller 'holes'.
     """
     # See https://docs.opencv.org/4.x/d9/d61/tutorial_py_morphological_ops.html
     return cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((factor, factor), np.uint8))
