@@ -2,6 +2,7 @@
 """
 Functions to process images of sketch maps and detect markings on them
 """
+from typing import Tuple
 
 import cv2
 import numpy as np
@@ -59,6 +60,15 @@ def detect_markings(
     single_colour_marking = _reduce_holes(single_colour_marking)
     single_colour_marking[single_colour_marking > 0] = 255
     return single_colour_marking
+
+
+def detect_markings_(
+    sketch_map_markings: NDArray,
+    colour: Tuple[int, int, int],
+) -> NDArray:
+    range_interval = 20
+    sketch_map_markings_hsv = cv2.cvtColor(sketch_map_markings, cv2.COLOR_BGR2HSV)
+    return cv2.inRange(sketch_map_markings_hsv, np.array(colour)- range_interval, np.array(colour) + range_interval)
 
 
 def prepare_img_for_marking_detection(
@@ -136,8 +146,14 @@ def _reduce_holes(img: NDArray, factor: int = 4) -> NDArray:
 
 
 if __name__ == "__main__":
-    # Save relevant results with CTRL+S for comparisons
+    # Note: HSV in GIMP 0-360, 0-100, 0-100. OpenCV: 0-179, 0-255, 0-255
+    def gimp_hsv_to_opencv_hsv(a, b, c):
+        return 179*a/360, 255*b/100, 255*c/100
 
+    # Manually detected using GIMP for the first example
+    colours_hsv_gimp = [(336, 80, 75), (217, 69, 68), (152, 85, 62), (290, 8, 30)]
+
+    # Save relevant results with CTRL+S for comparisons
     test_cases = (
         ("tests/fixtures/marking-detection/scan-base-map.jpg", "tests/fixtures/marking-detection/scan-markings.jpg"),
         ("tests/fixtures/marking-detection/photo-base-map.jpg", "tests/fixtures/marking-detection/photo-markings.jpg")
@@ -149,7 +165,7 @@ if __name__ == "__main__":
         cv2.imshow("Result of 'prepare_img_for_marking_detection'", result)
         cv2.waitKey(0)
 
-        # for colour in ('white', 'red', 'blue', 'green', 'yellow', 'turquoise', 'pink'):
-        #     result_single_col = detect_markings(result, colour)
-        #     cv2.imshow(f"Result of 'detect_markings' for colour '{colour}'", result_single_col)
-        #     cv2.waitKey(0)
+        for col in colours_hsv_gimp:
+            result_single_col = detect_markings_(result, gimp_hsv_to_opencv_hsv(*col))
+            cv2.imshow(f"Result of 'detect_markings' for colour", result_single_col)
+            cv2.waitKey(0)
