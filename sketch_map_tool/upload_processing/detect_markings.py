@@ -63,8 +63,7 @@ def detect_markings(
 
 def prepare_img_for_marking_detection(
     img_base: NDArray,
-    img_markings: NDArray,
-    threshold_img_diff: int = 100,
+    img_markings: NDArray
 ) -> NDArray:
     """
     Based on an image of a sketch map with markings and another image of the same sketch map without markings,
@@ -73,8 +72,6 @@ def prepare_img_for_marking_detection(
 
     :img_base: Image of the unmarked sketch map.
     :img_markings: Image of the marked sketch map.
-    :param threshold_img_diff: Threshold for the marking detection concerning the absolute grayscale difference between
-                               corresponding pixels in 'img_base' and 'img_markings'.
     :return: Image containing only the marked areas of a sketch map, all other pixels set to zero.
     """
     img_base_height, img_base_width, _ = img_base.shape
@@ -88,7 +85,8 @@ def prepare_img_for_marking_detection(
     img_markings_contrast = _enhance_contrast(img_markings)
     img_diff = cv2.absdiff(img_base, img_markings_contrast)
     img_diff_gray = cv2.cvtColor(img_diff, cv2.COLOR_BGR2GRAY)
-    mask_markings = img_diff_gray > threshold_img_diff
+    _, mask_markings = cv2.threshold(img_diff_gray, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    mask_markings = np.array(mask_markings, dtype=bool)
     markings_multicolor = np.zeros_like(img_markings, np.uint8)
     markings_multicolor[mask_markings] = img_markings[mask_markings]
     return markings_multicolor
@@ -150,8 +148,7 @@ if __name__ == "__main__":
         cv2.imshow("Result of 'prepare_img_for_marking_detection'", result)
         cv2.waitKey(0)
 
-        for colour in ('white', 'red', 'blue', 'green', 'yellow', 'turquoise', 'pink'):
-            result_single_col = detect_markings(result, colour)
-            cv2.imshow(f"Result of 'detect_markings' for colour '{colour}'", result_single_col)
-            cv2.waitKey(0)
-
+        # for colour in ('white', 'red', 'blue', 'green', 'yellow', 'turquoise', 'pink'):
+        #     result_single_col = detect_markings(result, colour)
+        #     cv2.imshow(f"Result of 'detect_markings' for colour '{colour}'", result_single_col)
+        #     cv2.waitKey(0)
