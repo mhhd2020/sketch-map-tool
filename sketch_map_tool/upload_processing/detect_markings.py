@@ -82,10 +82,11 @@ def prepare_img_for_marking_detection(
         fy=4,
         interpolation=cv2.INTER_NEAREST,
     )
-    img_markings_contrast = _enhance_contrast(img_markings)
-    img_diff = cv2.absdiff(img_base, img_markings_contrast)
-    img_diff_gray = cv2.cvtColor(img_diff, cv2.COLOR_BGR2GRAY)
-    smoothed = cv2.GaussianBlur(img_diff_gray, (5, 5), 0)
+    img_markings_gray = cv2.cvtColor(img_markings, cv2.COLOR_BGR2GRAY)
+    img_base_gray = cv2.cvtColor(img_base, cv2.COLOR_BGR2GRAY)
+    img_markings_contrast = _enhance_contrast(img_markings_gray)
+    img_diff = cv2.absdiff(img_base_gray, img_markings_contrast)
+    smoothed = cv2.GaussianBlur(img_diff, (5, 5), 0)
     _, mask_markings = cv2.threshold(smoothed, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask_markings = np.array(mask_markings, dtype=bool)
     markings_multicolor = np.zeros_like(img_markings, np.uint8)
@@ -101,9 +102,8 @@ def _enhance_contrast(img: NDArray, factor: float = 2.0) -> NDArray:
     :param factor: Factor for the contrast enhancement.
     :return: Image with enhanced contrast.
     """
-    input_img = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-    result = ImageEnhance.Contrast(input_img).enhance(factor)
-    return cv2.cvtColor(np.array(result), cv2.COLOR_RGB2BGR)
+    input_img = Image.fromarray(img)
+    return np.array(ImageEnhance.Contrast(input_img).enhance(factor))
 
 
 def _reduce_noise(img: NDArray, factor: int = 2) -> NDArray:
