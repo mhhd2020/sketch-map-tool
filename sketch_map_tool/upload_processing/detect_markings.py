@@ -85,7 +85,8 @@ def prepare_img_for_marking_detection(
     img_markings_contrast = _enhance_contrast(img_markings)
     img_diff = cv2.absdiff(img_base, img_markings_contrast)
     img_diff_gray = cv2.cvtColor(img_diff, cv2.COLOR_BGR2GRAY)
-    _, mask_markings = cv2.threshold(img_diff_gray, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    smoothed = cv2.GaussianBlur(img_diff_gray, (5, 5), 0)
+    _, mask_markings = cv2.threshold(smoothed, 0, 1, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask_markings = np.array(mask_markings, dtype=bool)
     markings_multicolor = np.zeros_like(img_markings, np.uint8)
     markings_multicolor[mask_markings] = img_markings[mask_markings]
