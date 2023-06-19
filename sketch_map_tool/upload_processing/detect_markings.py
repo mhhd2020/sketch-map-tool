@@ -72,7 +72,7 @@ def prepare_img_for_marking_detection(
     the unmarked areas to black.
 
     :img_base: Image of the unmarked sketch map.
-    :img_img_markings: Image of the marked sketch map.
+    :img_markings: Image of the marked sketch map.
     :param threshold_img_diff: Threshold for the marking detection concerning the absolute grayscale difference between
                                corresponding pixels in 'img_base' and 'img_markings'.
     :return: Image containing only the marked areas of a sketch map, all other pixels set to zero.
@@ -134,3 +134,24 @@ def _reduce_holes(img: NDArray, factor: int = 4) -> NDArray:
     """
     # See https://docs.opencv.org/4.x/d9/d61/tutorial_py_morphological_ops.html
     return cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((factor, factor), np.uint8))
+
+
+if __name__ == "__main__":
+    # Save relevant results with CTRL+S for comparisons
+
+    test_cases = (
+        ("tests/fixtures/marking-detection/scan-base-map.jpg", "tests/fixtures/marking-detection/scan-markings.jpg"),
+        ("tests/fixtures/marking-detection/photo-base-map.jpg", "tests/fixtures/marking-detection/photo-markings.jpg")
+    )
+    for case in test_cases:
+        img_base = cv2.imread(case[0])
+        img_markings = cv2.imread(case[1])
+        result = prepare_img_for_marking_detection(img_base, img_markings)
+        cv2.imshow("Result of 'prepare_img_for_marking_detection'", result)
+        cv2.waitKey(0)
+
+        for colour in ('white', 'red', 'blue', 'green', 'yellow', 'turquoise', 'pink'):
+            result_single_col = detect_markings(result, colour)
+            cv2.imshow(f"Result of 'detect_markings' for colour '{colour}'", result_single_col)
+            cv2.waitKey(0)
+
