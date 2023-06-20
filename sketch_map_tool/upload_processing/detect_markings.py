@@ -62,13 +62,30 @@ def detect_markings(
     return single_colour_marking
 
 
+def _reduce_noise_(img):
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (0, 0), sigmaX=33, sigmaY=33)
+    img = cv2.divide(gray, blurred, scale=255)
+    img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    img = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    # TODO: Remove noise from regions where globes are placed (e.g. x% width and height rectangles)
+    return cv2.fastNlMeansDenoisingColored(img, None, 30, 30, 20, 21)
+
+
 def detect_markings_(
     sketch_map_markings: NDArray,
     colour: Tuple[int, int, int],
 ) -> NDArray:
     range_interval = 20
     sketch_map_markings_hsv = cv2.cvtColor(sketch_map_markings, cv2.COLOR_BGR2HSV)
-    return cv2.inRange(sketch_map_markings_hsv, np.array(colour)- range_interval, np.array(colour) + range_interval)
+    single_colour_marking = cv2.inRange(sketch_map_markings_hsv, np.array(colour)- range_interval, np.array(colour) + range_interval)
+    single_colour_marking = cv2.cvtColor(single_colour_marking, cv2.COLOR_GRAY2BGR)
+    single_colour_marking = _reduce_noise_(single_colour_marking)
+    single_colour_marking = _reduce_holes(single_colour_marking)
+    single_colour_marking[single_colour_marking > 0] = 255
+    return single_colour_marking
 
 
 def prepare_img_for_marking_detection(
@@ -151,12 +168,12 @@ if __name__ == "__main__":
         return 179*a/360, 255*b/100, 255*c/100
 
     # Manually detected using GIMP for the first example
-    colours_hsv_gimp = [(336, 80, 75), (217, 69, 68), (152, 85, 62), (290, 8, 30)]
+    colours_hsv_gimp = [(336, 80, 75, "red"), (217, 69, 68, "blue"), (152, 85, 62, "green"), (290, 8, 30, "black")]
 
     # Save relevant results with CTRL+S for comparisons
     test_cases = (
         ("tests/fixtures/marking-detection/scan-base-map.jpg", "tests/fixtures/marking-detection/scan-markings.jpg"),
-        ("tests/fixtures/marking-detection/photo-base-map.jpg", "tests/fixtures/marking-detection/photo-markings.jpg")
+       # ("tests/fixtures/marking-detection/photo-base-map.jpg", "tests/fixtures/marking-detection/photo-markings.jpg")
     )
     for case in test_cases:
         img_base = cv2.imread(case[0])
@@ -166,6 +183,10 @@ if __name__ == "__main__":
         cv2.waitKey(0)
 
         for col in colours_hsv_gimp:
-            result_single_col = detect_markings_(result, gimp_hsv_to_opencv_hsv(*col))
-            cv2.imshow(f"Result of 'detect_markings' for colour", result_single_col)
-            cv2.waitKey(0)
+            result_single_col = detect_markings_(result, gimp_hsv_to_opencv_hsv(*col[:3]))
+            cv2.imwrite(f"new_noise_method_{col[3]}.jpg", result_single_col)
+            if col[3] != "black":
+                result_single_col = detect_markings(result, col[3])
+                cv2.imwrite(f"old_method_{col[3]}.jpg", result_single_col)
+            # cv2.imshow(f"Result of 'detect_markings' for colour", result_single_col)
+            # cv2.waitKey(0)
