@@ -2,7 +2,7 @@
 """
 Functions to process images of sketch maps and detect markings on them
 """
-from typing import Tuple
+from typing import Tuple, List
 
 import cv2
 import numpy as np
@@ -194,6 +194,26 @@ def equalise_colours(img: NDArray, reference: NDArray) -> NDArray:
     return match_histograms(img, reference, channel_axis=-1)
 
 
+def find_different_colours(base_colours: NDArray, marked_colours: NDArray, interval: int = 0) -> List[NDArray]:
+    """
+    Find colours of a marked image that do not appear (including in similar forms) on the original image.
+
+    :param base_colours: Colour codes (e.g. BGR) occurring in the base image.
+    :param marked_colours: Colour codes (e.g. BGR) occurring in the marked image.
+    :param interval: Tolerance around the colour values for each channel to be considered the same colour.
+    :return: List of colour codes of the colours that did only appear on the marked, but not the original image.
+    """
+    different_colours = []
+    for col in marked_colours:
+        if len(base_colours[
+                      ((base_colours[:, 0] < col[0] + interval) & (base_colours[:, 0] > col[0] - interval)) &
+                      ((base_colours[:, 1] < col[1] + interval) & (base_colours[:, 1] > col[1] - interval)) &
+                      ((base_colours[:, 2] < col[2] + interval) & (base_colours[:, 2] > col[2] - interval))
+                      ]) == 0:
+            different_colours.append(col)
+    return different_colours
+
+
 if __name__ == "__main__":
     # Note: HSV in GIMP 0-360, 0-100, 0-100. OpenCV: 0-179, 0-255, 0-255
     def gimp_hsv_to_opencv_hsv(a, b, c):
@@ -215,15 +235,24 @@ if __name__ == "__main__":
         img_base_red, centers_base = reduce_nr_of_colours(img_base)
         img_markings_red, centers_markings = reduce_nr_of_colours(img_markings_eq)
 
-        # TODO: Compare colour distributions to detect marking colours
+        # TODO: Detect marking colours not based on the markings on the map frame (does not work for all colours)
+        #       but add an example legend (e.g. a black grid on white background in which people can add the colours)
+        #       This legend can be detected similarly like the sketch map on the photo and used to obtain the HSV codes
+        #       for marking detection.
+        marking_colours = find_different_colours(centers_base, centers_markings)
+
+        colours_hsv = []
+        for i, marking_col in enumerate(marking_colours):
+            colours_hsv.append((*cv2.cvtColor(np.array([[marking_col]]), cv2.COLOR_BGR2HSV)[0][0], f"marking_{i}"))
 
         result = prepare_img_for_marking_detection(img_base, img_markings)
         cv2.imshow("Result of 'prepare_img_for_marking_detection'", result)
         cv2.waitKey(0)
 
-        for col in colours_hsv_gimp:
-            result_single_col = detect_markings_(result, gimp_hsv_to_opencv_hsv(*col[:3]))
+        for col in colours_hsv:
+            result_single_col = detect_markings_(result, col[:3])
             cv2.imwrite(f"new_noise_method_{col[3]}.jpg", result_single_col)
+            continue
             if col[3] != "black":
                 result_single_col = detect_markings(result, col[3])
                 cv2.imwrite(f"old_method_{col[3]}.jpg", result_single_col)
