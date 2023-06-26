@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 from PIL import Image, ImageEnhance
+from skimage.exposure import match_histograms
 
 
 def detect_markings(
@@ -162,6 +163,37 @@ def _reduce_holes(img: NDArray, factor: int = 4) -> NDArray:
     return cv2.morphologyEx(img, cv2.MORPH_CLOSE, np.ones((factor, factor), np.uint8))
 
 
+def reduce_nr_of_colours(img: NDArray, max_nr: int = 30) -> Tuple[NDArray, NDArray]:
+    """
+    Reduce the number of colours in an image by performing colour quantisation.
+    C.f. https://docs.opencv.org/3.4/d1/d5c/tutorial_py_kmeans_opencv.html
+
+    :param img: Image which should be returned with fewer colours. Should have 3 channels (BGR).
+    :param max_nr: Max. number of colours in the returned image.
+    :return: Image with fewer different colours (BGR), Remaining colours (BGR colour codes).
+    """
+    img_array = np.float32(img.reshape((img.shape[0] * img.shape[1], 3)))
+    criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 10, 1.0)
+    _, labels, colours = cv2.kmeans(img_array, max_nr, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
+    colours = np.uint8(colours)
+    img_with_fewer_colours_array = colours[labels.flatten()]
+    img_with_fewer_colours = img_with_fewer_colours_array.reshape(img.shape)
+    return img_with_fewer_colours, colours
+
+
+def equalise_colours(img: NDArray, reference: NDArray) -> NDArray:
+    """
+    Equalise the colours of a given image with those of a second given image to account, for example, for
+    different light conditions during taking a photo.
+    C.f. https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_histogram_matching.html
+
+    :param img: Image the colours of which are to be adjusted based on a second image.
+    :param reference: Image based on which the colours of the first image are adjusted.
+    :return: First image 'img' with equalised colours.
+    """
+    return match_histograms(img, reference, channel_axis=-1)
+
+
 if __name__ == "__main__":
     # Note: HSV in GIMP 0-360, 0-100, 0-100. OpenCV: 0-179, 0-255, 0-255
     def gimp_hsv_to_opencv_hsv(a, b, c):
@@ -178,6 +210,13 @@ if __name__ == "__main__":
     for case in test_cases:
         img_base = cv2.imread(case[0])
         img_markings = cv2.imread(case[1])
+
+        img_markings_eq = equalise_colours(img_markings, img_base)
+        img_base_red, centers_base = reduce_nr_of_colours(img_base)
+        img_markings_red, centers_markings = reduce_nr_of_colours(img_markings_eq)
+
+        # TODO: Compare colour distributions to detect marking colours
+
         result = prepare_img_for_marking_detection(img_base, img_markings)
         cv2.imshow("Result of 'prepare_img_for_marking_detection'", result)
         cv2.waitKey(0)
